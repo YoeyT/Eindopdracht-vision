@@ -1,0 +1,3 @@
+https://www.kaggle.com/datasets/scolianni/mnistasjpg
+
+zet trainingSet in dezelfde directory als deze file

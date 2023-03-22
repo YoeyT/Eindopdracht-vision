@@ -48,6 +48,7 @@ dkms.conf
 # vscode
 *.json
 
-# data sets (too big)
+# data sets (files too big)
 *.jpg
 *.png
+*.zip
