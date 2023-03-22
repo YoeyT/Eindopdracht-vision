@@ -1,0 +1,135 @@
+animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
+average cost: 0.5
+accuracy: 64.1%
+neurons per hidden layer: 16
+amount of hidden layers: 1
+in < 1 minute
+
+animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
+average cost: 0.47
+accuracy: 65.3%
+neurons per hidden layer: 32
+amount of hidden layers: 1
+in 1 minute
+
+animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
+average cost: 0.47
+accuracy: 67.2%
+neurons per hidden layer: 64
+amount of hidden layers: 1
+in 2 minutes
+
+animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
+average cost: 0.57
+accuracy: 58.4%
+neurons per hidden layer: 128
+amount of hidden layers: 1
+in 5 minutes
+
+animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
+average cost: 0.51
+accuracy: 62%
+neurons per hidden layer: 256
+amount of hidden layers: 1
+in 10 minutes
+
+animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
+average cost: 0.46
+accuracy: 66.2%
+neurons per hidden layer: 512
+amount of hidden layers: 1
+in 20 minutes
+
+
+
+
+mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
+average cost: 0.24
+accuracy: 85.18%
+neurons per hidden layer: 32
+amount of hidden layers: 1
+in < 1 minute
+
+mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
+average cost: 0.20
+accuracy: 88.27%
+neurons per hidden layer: 64
+amount of hidden layers: 1
+in < 1 minute
+
+mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
+average cost: 0.20
+accuracy: 88.42%
+neurons per hidden layer: 128
+amount of hidden layers: 1
+in < 1 minute
+
+mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
+average cost: 0.18
+accuracy: 89.36%
+neurons per hidden layer: 256
+amount of hidden layers: 1
+in < 1 minute
+
+mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
+average cost: 0.17
+accuracy: 90%
+neurons per hidden layer: 512
+amount of hidden layers: 1
+in < 1 minute
+
+mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
+average cost: 0.17
+accuracy: 90.32%
+neurons per hidden layer: 1024
+amount of hidden layers: 1
+in < 1 minute
+
+mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
+average cost: 0.2
+accuracy: 89.3%
+neurons per hidden layer: 2048
+amount of hidden layers: 1
+in 1 minute
+
+
+
+
+!!! oude resultaten !!!
+shapes dataset (amount of training images = 10000, amount of testing images = 14000, seed = 0):
+average cost: 0.31
+accuracy: 79.11%
+neurons per hidden layer: 8
+amount of hidden layers: 1
+in < 1 minute
+
+shapes dataset (amount of training images = 10000, amount of testing images = 14000, seed = 0):
+average cost: 0.05
+accuracy: 97.11%
+neurons per hidden layer: 16
+amount of hidden layers: 1
+in < 1 minute
+
+shapes dataset (amount of training images = 10000, amount of testing images = 14000, seed = 0):
+average cost: 0.05
+accuracy: 95.72%
+neurons per hidden layer: 32
+amount of hidden layers: 1
+in 1 minute
+
+shapes dataset (amount of training images = 10000, amount of testing images = 14000, seed = 0):
+average cost: 0.18
+accuracy: 91.08%
+neurons per hidden layer: 64
+amount of hidden layers: 1
+in 2 minutes
+
+shapes dataset (amount of training images = 10000, amount of testing images = 14000, seed = 0):
+average cost: 0.18
+accuracy: 90.31%
+neurons per hidden layer: 128
+amount of hidden layers: 1
+in 4 minutes
+
+
+niet slecht!

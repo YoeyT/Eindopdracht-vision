@@ -1,0 +1,21 @@
+#version 330 core
+
+layout(location = 0) in vec4 position;
+layout(location = 1) in vec2 vsTexCoords;
+layout(location = 2) in float vsTexSlot;
+layout(location = 3) in vec4 vsColor;
+
+out vec2 fsTexCoords; 
+out float fsTexSlot;
+out vec4 fsColor;
+
+uniform mat4 uOrtProjMat;
+
+void main()
+{
+   gl_Position = uOrtProjMat * position;
+   
+   fsTexCoords = vsTexCoords;
+   fsTexSlot = vsTexSlot;
+   fsColor = vsColor;
+};
