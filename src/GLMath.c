@@ -96,3 +96,16 @@ void ConvolveImageKern3x3(const uint32_t* src, uint32_t* dest, const int width, 
         }
     }
 }
+
+//not the fastest way, but very elegant and easy to understand
+float CubicBezierSpline(const float p0, const float p1, const float c0, const float c1, const float t)
+{
+    float a = Lerp(p0, c0, t);
+    float b = Lerp(c0, c1, t);
+    float c = Lerp(c1, p1, t);
+
+    float d = Lerp(a, b, t);
+    float e = Lerp(b, c, t);
+
+    return Lerp(d, e, t);
+}

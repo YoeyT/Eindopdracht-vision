@@ -1,10 +1,12 @@
 #include "StateMachine.h"
 
 #include "dirent.h"
+#include <unistd.h> //TODO: tijdelijk
 
 #include "Texture.h"
 #include "UserInput.h"
 #include "NeuralNetwork.h"
+#include "Statistics.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h" //het fijne hieraan is dat niks extern is (ik gebruik het bovendien alleen om plaatjes in te lezen)
@@ -22,7 +24,7 @@ GLFWwindow* Init()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     //windowed screen
-    window = glfwCreateWindow(DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, "vision project", NULL, NULL);
+    window = glfwCreateWindow((DATASET_IMAGE_WIDTH * 2.0), DATASET_IMAGE_HEIGHT, "vision project", NULL, NULL);
 
     if (!window)
     {
@@ -83,15 +85,24 @@ void Start(State* s)
 
 
     //vertex and index buffer
-    Vertex2D fPositions[4] = 
+    Vertex2D fPositions[2][4] = 
     {
-        { 0.0, 0.0,                                                 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
-        { (float)DATASET_IMAGE_WIDTH, 0.0,                          1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
-        { (float)DATASET_IMAGE_WIDTH, (float)DATASET_IMAGE_HEIGHT,  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
-        { 0.0, (float)DATASET_IMAGE_HEIGHT,                         0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 }
+        { //image vertices
+            { 0.0, 0.0,                                                 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+            { (float)DATASET_IMAGE_WIDTH, 0.0,                          1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+            { (float)DATASET_IMAGE_WIDTH, (float)DATASET_IMAGE_HEIGHT,  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+            { 0.0, (float)DATASET_IMAGE_HEIGHT,                         0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 }
+        },
+        { //graph vertices
+            { (float)DATASET_IMAGE_WIDTH, 0.0,                                  0.0, 0.0, 2.0, 1.0, 1.0, 1.0, 1.0 },
+            { ((float)DATASET_IMAGE_WIDTH * 2.0), 0.0,                          1.0, 0.0, 2.0, 1.0, 1.0, 1.0, 1.0 },
+            { ((float)DATASET_IMAGE_WIDTH * 2.0), (float)DATASET_IMAGE_HEIGHT,  1.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0 },
+            { (float)DATASET_IMAGE_WIDTH, (float)DATASET_IMAGE_HEIGHT,          0.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0 }
+        }
     };
 
-    const size_t staticAllocSize = 1;
+
+    const size_t staticAllocSize = 2;
     const uint16_t dynamicAllocSize = 0;
     VertexBuffer* vBuffer = CreateVertexBuffer((staticAllocSize * 4), (dynamicAllocSize * 4));
     IndexBuffer* iBuffer = CreateIndexBuffer((staticAllocSize * 6), (dynamicAllocSize * 6));
@@ -126,16 +137,16 @@ void Training(State* s)
     ShaderProgram* computeShader = GetShader(s->shaderLib, 1);
     IndexBuffer* iBuffer = s->iBuffer;
 
-    Mat4x4 projMat = OrthographicMat4x4(0.0, (float)DATASET_IMAGE_WIDTH, 0.0, (float)DATASET_IMAGE_HEIGHT, -1.0, 1.0);
+    Mat4x4 projMat = OrthographicMat4x4(0.0, ((float)DATASET_IMAGE_WIDTH * 2.0), 0.0, (float)DATASET_IMAGE_HEIGHT, -1.0, 1.0);
     Mat4x4 viewMat = TranslationMat4x4(0.0, 0.0, 0.0);
     Mat4x4 final;
-    s->projMat = &projMat;
-    s->viewMat = &viewMat;
 
     SetKeyPressCallback(window);
 
     Texture image = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 1 };
+    Texture graph = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 2 };
     LoadTexGPU(&image, NULL); //basically reserve space on GPU
+    LoadTexGPU(&graph, NULL);
 
     srand(0); //zorgt ervoor dat alles binnen redelijk grenzen deterministisch blijft
     Vec2f cameraPos = { 0.0f, 0.0f };
@@ -169,11 +180,16 @@ void Training(State* s)
     //const float sharpenKernel[3][3] = { { 0.0, -1.0, 0.0 }, { -1.0, 5.0, -1.0 }, { 0.0, -1.0, 0.0 } };
 
     NeuralNetwork* network = CreateNeuralNetwork();
+    StatisticSet* stat = CreateStatisticSet(STAT_UINT, STAT_FLOAT);
+
     unsigned int imagesTrained = 0;
     const unsigned int amountOfImagesToTrain = 7000;
+    float totalCost = 0.0;
+    float averageCost = 0.0;
+    AddLineLayout(stat, 0xFF000000, amountOfImagesToTrain);
 
     double beginTimer = glfwGetTime();
-    while(!glfwWindowShouldClose(window) && (s->flags != 0x01) && (imagesTrained != amountOfImagesToTrain))
+    while(!glfwWindowShouldClose(window) && (s->flags != 0x01) && (imagesTrained < amountOfImagesToTrain))
     {
         Clear();
 
@@ -182,7 +198,7 @@ void Training(State* s)
         LoadUniformMat4x4(basicShader, 1, &final);
 
         int randomDirIndex = (rand() % OUTPUT_COUNT);
-        if(((fileDir = readdir(dirs[randomDirIndex])) != NULL) && imagesTrained < amountOfImagesToTrain)
+        if((fileDir = readdir(dirs[randomDirIndex])) != NULL)
         {
             snprintf(buffer, 128, "%s/%s/%s", trainingPath, dirLUT[randomDirIndex], fileDir->d_name);
             stbi_uc* data = stbi_load(image.filePath, &image.width, &image.height, NULL, 4);
@@ -193,8 +209,13 @@ void Training(State* s)
                 //ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, edgeKernelHV);
 
                 LoadSubTexGPU(&image, 0, 0, (uint32_t*)data);
-                Train(network, computeShader, (uint32_t*)data, randomDirIndex);
+                totalCost += Train(network, computeShader, (uint32_t*)data, randomDirIndex);
                 imagesTrained++;
+                averageCost = totalCost / (float)imagesTrained;
+
+                AddDataPoint(stat, 0, (void*)(&imagesTrained), (void*)(&averageCost));
+
+                printf("\r%d%% done", (unsigned int)(((float)imagesTrained / (float)amountOfImagesToTrain) * 100.0));
 
                 stbi_image_free((void*)data);
             }
@@ -207,7 +228,12 @@ void Training(State* s)
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    printf("trained %d images in %.2f minutes\n", imagesTrained, ((glfwGetTime() - beginTimer) / 60.0));
+    uint32_t* graphImg = GenerateGraph(stat, 0.0, (float)amountOfImagesToTrain, 0.5, (float)(OUTPUT_COUNT-1));
+    LoadSubTexGPU(&graph, 0, 0, graphImg);
+    free((void*)graphImg);
+    DeleteStatisticsSet(stat);
+
+    printf("\ntrained %d images in %.2f minutes\n", imagesTrained, ((glfwGetTime() - beginTimer) / 60.0));
     //SaveNeuralNetworkToFile(network, "res/savedNeuralNetworks/shapes.nn"); //TODO: optioneel, heb betere interface nodig
 
     for(unsigned int i = 0; i < OUTPUT_COUNT; i++)
@@ -234,11 +260,9 @@ void Testing(State* s)
     IndexBuffer* iBuffer = s->iBuffer;
     NeuralNetwork* network = (NeuralNetwork*)s->data1;
 
-    Mat4x4 projMat = OrthographicMat4x4(0.0, (float)DATASET_IMAGE_WIDTH, 0.0, (float)DATASET_IMAGE_HEIGHT, -1.0, 1.0);
+    Mat4x4 projMat = OrthographicMat4x4(0.0, ((float)DATASET_IMAGE_WIDTH * 2.0), 0.0, (float)DATASET_IMAGE_HEIGHT, -1.0, 1.0);
     Mat4x4 viewMat = TranslationMat4x4(0.0, 0.0, 0.0);
-    Mat4x4 final;
-    s->projMat = &projMat;
-    s->viewMat = &viewMat;
+    Mat4x4 final; //TODO: voeg toe aan state machine, zodat training en testing scherm hetzelfde scherm hebben
 
     Texture image = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 1 };
     //LoadTexGPU(&image, NULL); //basically reserve space in GPU //TODO: beweeg naar Start state misschien?

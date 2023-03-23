@@ -8,7 +8,7 @@
 
 #define INPUT_COUNT                         (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT)
 #define OUTPUT_COUNT                        3
-#define NEURONS_PER_HIDDEN_LAYER_COUNT      64
+#define NEURONS_PER_HIDDEN_LAYER_COUNT      256
 #define HIDDEN_LAYER_COUNT                  1 //minimum of 1 hidden layer
 
 typedef struct NeuralNetwork
@@ -39,5 +39,5 @@ float nCost(const NeuralNetwork* network, const unsigned int correctOutputIndex)
 //try to predict the image without training the neural network, returns index to the predicted answer
 unsigned int PeekImage(NeuralNetwork* network, const uint32_t* imageData);
 
-//trains the neural network with one image specified by imageData
-void Train(NeuralNetwork* network, ShaderProgram* computeShader, const uint32_t* imageData, const unsigned int correctOutputIndex);
+//trains the neural network with one image specified by imageData, returns the cost
+float Train(NeuralNetwork* network, ShaderProgram* computeShader, const uint32_t* imageData, const unsigned int correctOutputIndex);

@@ -30,9 +30,11 @@ void SetTransformMat4x4(Mat4x4* mat, float x, float y, float z);
 void ConvertImageGrayScale(uint32_t* data, const int width, const int height);
 void ConvolveImageKern3x3(const uint32_t* src, uint32_t* dest, const int width, const int height, const float kernel[3][3]);
 
+float CubicBezierSpline(const float p0, const float p1, const float c0, const float c1, const float t);
+
 static inline float DotProduct(Vec2f lhs, Vec2f rhs) { return (lhs.x * rhs.x) + (lhs.y * rhs.y); }
-static inline float Sigmoid(const float x) { return (1.0 / (1.0 + powf(E, -x))); }
-//TODO: Sigmoid werkt erg goed met het neurale netwerk, maar misschien dat iets simpelers ook goed werkt: RELU  R(z) = min(1.0, max(0.0, z))
+static inline float Sigmoid(const float x) { return (1.0 / (1.0 + powf(E, -x))); } //TODO: Sigmoid werkt erg goed met het neurale netwerk, maar misschien dat iets simpelers ook goed werkt: RELU  R(z) = min(1.0, max(0.0, z))
+static inline float Lerp(const float p0, const float p1, const float t) { return p0 + (t * (p1 - p0)); }
 
 static inline Vec2f RandomGradient()
 {

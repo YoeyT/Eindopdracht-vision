@@ -268,19 +268,20 @@ unsigned int PeekImage(NeuralNetwork* network, const uint32_t* imageData)
     return highestValueIndex;
 }
 
-void Train(NeuralNetwork* network, ShaderProgram* computeShader, const uint32_t* imageData, const unsigned int correctOutputIndex)
+float Train(NeuralNetwork* network, ShaderProgram* computeShader, const uint32_t* imageData, const unsigned int correctOutputIndex)
 {
     unsigned int highestValueIndex = PeekImage(network, imageData);
+    float cost = nCost(network, correctOutputIndex);
     BackPropagation(network, computeShader, correctOutputIndex);
+
+    return cost;
 
     //TODO: DEBUG
     amountOfAnswers++;
     if(highestValueIndex == correctOutputIndex)
         amountOfCorrectAnswers++;
-    
-    float costTotal = nCost(network, correctOutputIndex);
 
     if((amountOfAnswers % 1000) == 0)
-        printf("cost: %.2f\taccuracy: %.2f%%\timages Trained: %d\n", costTotal, (((float)amountOfCorrectAnswers / (float)amountOfAnswers) * 100.0), amountOfAnswers); // the lower the cost, the better the answer
+        printf("cost: %.2f\taccuracy: %.2f%%\timages Trained: %d\n", cost, (((float)amountOfCorrectAnswers / (float)amountOfAnswers) * 100.0), amountOfAnswers); // the lower the cost, the better the answer
     //DEBUG
 }
