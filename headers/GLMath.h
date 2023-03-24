@@ -44,3 +44,6 @@ static inline Vec2f RandomGradient()
 
 //between 0.0 and 1.0
 static inline float RandomFloat() { return ((float)rand() / (float)RAND_MAX); }
+
+static inline float maxf(const float v0, const float v1) { return (v0 > v1) ? v0 : v1; }
+static inline float minf(const float v0, const float v1) { return (v0 < v1) ? v0 : v1; }

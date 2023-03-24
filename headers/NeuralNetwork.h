@@ -8,8 +8,8 @@
 
 #define INPUT_COUNT                         (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT)
 #define OUTPUT_COUNT                        3
-#define NEURONS_PER_HIDDEN_LAYER_COUNT      256
-#define HIDDEN_LAYER_COUNT                  1 //minimum of 1 hidden layer
+#define NEURONS_PER_HIDDEN_LAYER_COUNT      20
+#define HIDDEN_LAYER_COUNT                  2 //minimum of 1 hidden layer
 
 typedef struct NeuralNetwork
 {

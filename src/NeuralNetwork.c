@@ -31,7 +31,7 @@ static void BackPropagation(NeuralNetwork* network, ShaderProgram* computeShader
         for(unsigned int j = 0; j < OUTPUT_COUNT; j++)
         {
             float desiredOutputValueProportion = network->outputLayer[j];
-            desiredInputValueProportion += (network->lastHiddenToOutputLayerWeights[j][i] * desiredOutputValueProportion * nudgeFactor);
+            desiredInputValueProportion += (network->lastHiddenToOutputLayerWeights[j][i] * desiredOutputValueProportion);
             network->lastHiddenToOutputLayerWeights[j][i] += (hiddenNeuronProportion * desiredOutputValueProportion * nudgeFactor);
         }
 
@@ -43,7 +43,7 @@ static void BackPropagation(NeuralNetwork* network, ShaderProgram* computeShader
     {
         //bias
         for(unsigned int i = 0; i < NEURONS_PER_HIDDEN_LAYER_COUNT; i++)
-            network->hiddenLayersBiases[l+1][i] += (network->hiddenLayers[l+1][i] * nudgeFactor);
+            network->hiddenLayersBiases[l+1][i] += (network->hiddenLayers[l+1][i] * nudgeFactor); //TODO: als het nog niet werkt met meerdere layers, zet dit dan misschien uit
 
         //weights and desired inputs
         for(unsigned int i = 0; i < NEURONS_PER_HIDDEN_LAYER_COUNT; i++)
@@ -54,7 +54,7 @@ static void BackPropagation(NeuralNetwork* network, ShaderProgram* computeShader
             for(unsigned int j = 0; j < NEURONS_PER_HIDDEN_LAYER_COUNT; j++)
             {
                 float rightProportion = network->hiddenLayers[l+1][j];
-                desiredLeftProportion += (network->hiddenToHiddenLayerWeights[l][j][i] * rightProportion * nudgeFactor);
+                desiredLeftProportion += (network->hiddenToHiddenLayerWeights[l][j][i] * rightProportion);
                 network->hiddenToHiddenLayerWeights[l][j][i] += (leftProportion * rightProportion * nudgeFactor);
             }
 
@@ -228,19 +228,19 @@ unsigned int PeekImage(NeuralNetwork* network, const uint32_t* imageData)
         for(unsigned int n = 0; n < INPUT_COUNT; n++)
             weightedSum += (network->inputToFirstHiddenLayerWeights[i][n] * network->inputLayer[n]);
 
-        network->hiddenLayers[0][i] = Sigmoid(weightedSum + network->hiddenLayersBiases[0][i]);
+        network->hiddenLayers[0][i] = Sigmoid(weightedSum + (network->hiddenLayersBiases[0][i]));
     }
 
     //hidden layers to hidden layers
-    for(unsigned int i = 1; i < HIDDEN_LAYER_COUNT; i++)
+    for(unsigned int l = 1; l < HIDDEN_LAYER_COUNT; l++)
     {
-        for(unsigned int j = 0; j < NEURONS_PER_HIDDEN_LAYER_COUNT; j++)
+        for(unsigned int i = 0; i < NEURONS_PER_HIDDEN_LAYER_COUNT; i++)
         {
             float weightedSum = 0.0;
-            for(unsigned int n = 0; n < NEURONS_PER_HIDDEN_LAYER_COUNT; n++)
-                weightedSum += (network->hiddenToHiddenLayerWeights[i-1][j][n] * network->hiddenLayers[i-1][n]);
+            for(unsigned int j = 0; j < NEURONS_PER_HIDDEN_LAYER_COUNT; j++)
+                weightedSum += (network->hiddenToHiddenLayerWeights[l-1][i][j] * network->hiddenLayers[l-1][j]);
 
-            network->hiddenLayers[i][j] = Sigmoid(weightedSum + network->hiddenLayersBiases[i][j]);
+            network->hiddenLayers[l][i] = Sigmoid(weightedSum + (network->hiddenLayersBiases[l][i]));
         }
     }
 
@@ -251,7 +251,7 @@ unsigned int PeekImage(NeuralNetwork* network, const uint32_t* imageData)
         for(unsigned int n = 0; n < NEURONS_PER_HIDDEN_LAYER_COUNT; n++)
             weightedSum += (network->lastHiddenToOutputLayerWeights[i][n] * network->hiddenLayers[HIDDEN_LAYER_COUNT-1][n]);
 
-        network->outputLayer[i] = Sigmoid(weightedSum + network->outputLayerBiases[i]);
+        network->outputLayer[i] = Sigmoid(weightedSum + (network->outputLayerBiases[i]));
     }
 
     //highest value in output layer

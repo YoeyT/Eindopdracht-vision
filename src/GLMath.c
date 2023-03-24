@@ -1,5 +1,16 @@
 #include "GLMath.h"
 
+static float ConvolveAtOffsetKern3x3(const uint32_t* src,  const int width, const int xOff, const int yOff, const float kernel[3][3])
+{
+    float sum = 0.0;
+    for(unsigned int x = 0; x < 3; x++)
+    {
+        for(unsigned int y = 0; y < 3; y++)
+            sum += (((uint8_t)(*(src + ((yOff + y) * width) + (xOff + x))) / 255.0) * kernel[x][y]);
+    }
+    return sum;
+}
+
 Mat4x4 InitMat4x4(float mat[16])
 {
     Mat4x4 retMat;
@@ -74,25 +85,15 @@ void ConvertImageGrayScale(uint32_t* data, const int width, const int height)
 
 void ConvolveImageKern3x3(const uint32_t* src, uint32_t* dest, const int width, const int height, const float kernel[3][3])
 {
-    memset((void*)dest, 0, (sizeof(uint32_t) * (width * height)));
-
+    float sum = 0.0;
+    uint8_t gray = 0;
     for(unsigned int y = 1; y < (height - 1); y++)
     {
         for(unsigned int x = 1; x < (width - 1); x++)
         {
-            //printf("%d ", (uint8_t)(*(src + ((y-1) * width) + (x-1))));
-            uint8_t g = abs(
-                ((uint8_t)(*(src + ((y-1) * width) + (x-1))) * kernel[0][0]) + 
-                ((uint8_t)(*(src + ((y-1) * width) + (x))) * kernel[0][1]) + 
-                ((uint8_t)(*(src + ((y-1) * width) + (x+1))) * kernel[0][2]) + 
-                ((uint8_t)(*(src + ((y) * width) + (x-1))) * kernel[1][0]) + 
-                ((uint8_t)(*(src + ((y) * width) + (x))) * kernel[1][1]) + 
-                ((uint8_t)(*(src + ((y) * width) + (x+1))) * kernel[1][2]) + 
-                ((uint8_t)(*(src + ((y+1) * width) + (x-1))) * kernel[2][0]) + 
-                ((uint8_t)(*(src + ((y+1) * width) + (x))) * kernel[2][1]) + 
-                ((uint8_t)(*(src + ((y+1) * width) + (x+1))) * kernel[2][2])); //TODO: maak dit netjes, dit is echt verschrikkelijk
-
-            *(dest + (y * width) + x) = (uint32_t)(0xFF000000 + (g << 16) + (g << 8) + g);
+            sum = ConvolveAtOffsetKern3x3(src, width, (x-1), (y-1), kernel);
+            gray = (uint8_t)(maxf(minf((sum * 255.0), 255.0), 0.0));
+            *(dest + (y * width) + x) = (uint32_t)(0xFF000000 + (gray << 16) + (gray << 8) + gray);
         }
     }
 }

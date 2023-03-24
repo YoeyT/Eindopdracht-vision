@@ -133,3 +133,8 @@ in 4 minutes
 
 
 niet slecht!
+
+
+het lijkt er op dat neurale netwerken met meerdere layers slechter worden naar mate je ze TE veel traint, heel gek (met mnist dataset)
+
+~8000 images lijkt optimaal te zijn voor mnist dataset en 2 hidden layers (iets om nog te plotten)

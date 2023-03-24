@@ -64,6 +64,7 @@ void Start(State* s)
     s->window = window;
     glfwSetWindowUserPointer(window, (void*)s);
     SetResizeCallback(window);
+    stbi_set_flip_vertically_on_load(true);
 
     //shader library prep
     const char* shaderFilePaths[2] = { "res/shaders/basicShader.fragment", "res/shaders/basicShader.vertex" };
@@ -74,7 +75,6 @@ void Start(State* s)
     AddVarsToCache(GetShader(shaders, 0), args, 2);
     s->shaderLib = shaders;
 
-
     //texture prep
     int usedTexSlots[3] = { 0, 1, 2 };
     LoadUniformVarInts(GetShader(s->shaderLib, 0), 0, 3, usedTexSlots);
@@ -83,8 +83,13 @@ void Start(State* s)
     LoadTexGPU(&wit, NULL); //basically reserve space in GPU
     LoadTexRawData(&wit);
 
+    //view matrices
+    Mat4x4 projMat = OrthographicMat4x4(0.0, ((float)DATASET_IMAGE_WIDTH * 2.0), 0.0, (float)DATASET_IMAGE_HEIGHT, -1.0, 1.0);
+    Mat4x4 viewMat = TranslationMat4x4(0.0, 0.0, 0.0);
+    Mat4x4 final = MultiplyMat4x4(projMat, viewMat);
+    LoadUniformMat4x4(GetShader(shaders, 0), 1, &final);
 
-    //vertex and index buffer
+    //vertex and index buffers
     Vertex2D fPositions[2][4] = 
     {
         { //image vertices
@@ -100,7 +105,6 @@ void Start(State* s)
             { (float)DATASET_IMAGE_WIDTH, (float)DATASET_IMAGE_HEIGHT,          0.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0 }
         }
     };
-
 
     const size_t staticAllocSize = 2;
     const uint16_t dynamicAllocSize = 0;
@@ -137,19 +141,14 @@ void Training(State* s)
     ShaderProgram* computeShader = GetShader(s->shaderLib, 1);
     IndexBuffer* iBuffer = s->iBuffer;
 
-    Mat4x4 projMat = OrthographicMat4x4(0.0, ((float)DATASET_IMAGE_WIDTH * 2.0), 0.0, (float)DATASET_IMAGE_HEIGHT, -1.0, 1.0);
-    Mat4x4 viewMat = TranslationMat4x4(0.0, 0.0, 0.0);
-    Mat4x4 final;
-
     SetKeyPressCallback(window);
 
     Texture image = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 1 };
-    Texture graph = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 2 };
+    Texture graph = { GRAPH_IMAGE_WIDTH, GRAPH_IMAGE_HEIGHT, 2 };
     LoadTexGPU(&image, NULL); //basically reserve space on GPU
     LoadTexGPU(&graph, NULL);
 
     srand(0); //zorgt ervoor dat alles binnen redelijk grenzen deterministisch blijft
-    Vec2f cameraPos = { 0.0f, 0.0f };
 
     //directory strings //TODO: debug code, remove later
     // const char* trainingPath = "res/dataSets/mnist/trainingSet";
@@ -170,32 +169,27 @@ void Training(State* s)
     }
     struct dirent *fileDir;
 
-    stbi_set_flip_vertically_on_load(true);
-
     //convolution testing
-    //uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
-    //const float edgeKernelV[3][3] = { { -0.2, 0.0, 0.2 }, { -1.0, 0.0, 1.0 }, { -0.2, 0.0, 0.2 } };
-    //const float edgeKernelH[3][3] = { { -0.2, -1.0, -0.2 }, { 0.0, 0.0, 0.0 }, { 0.2, 1.0, 0.2 } };
-    //const float edgeKernelHV[3][3] = { { -0.1, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 0.1 } };
+    uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
+    //const float sobelKernelV[3][3] = { { -1.0, 0.0, 1.0 }, { -2.0, 0.0, 2.0 }, { -1.0, 0.0, 1.0 } };
+    const float sobelKernelH[3][3] = { { -1.0, -2.0, -1.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 2.0, 1.0 } };
+    //const float sobelKernelD[3][3] = { { -2.0, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 2.0 } };
+    //const float sobelKernelHV[3][3] = { { -0.1, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 0.1 } };
     //const float sharpenKernel[3][3] = { { 0.0, -1.0, 0.0 }, { -1.0, 5.0, -1.0 }, { 0.0, -1.0, 0.0 } };
 
     NeuralNetwork* network = CreateNeuralNetwork();
-    StatisticSet* stat = CreateStatisticSet(STAT_UINT, STAT_FLOAT);
+    StatisticSet* stat = CreateStatisticSet(STAT_UINT, STAT_FLOAT, 1000.0, 0.5);
 
     unsigned int imagesTrained = 0;
-    const unsigned int amountOfImagesToTrain = 7000;
+    const unsigned int amountOfImagesToTrain = 5000;
     float totalCost = 0.0;
     float averageCost = 0.0;
-    AddLineLayout(stat, 0xFF000000, amountOfImagesToTrain);
+    AddLineLayout(stat, 0xFF008000, amountOfImagesToTrain, 5);
 
     double beginTimer = glfwGetTime();
     while(!glfwWindowShouldClose(window) && (s->flags != 0x01) && (imagesTrained < amountOfImagesToTrain))
     {
         Clear();
-
-        SetTransformMat4x4(&viewMat, cameraPos.x, cameraPos.y, 0.0);
-        final = MultiplyMat4x4(projMat, viewMat);
-        LoadUniformMat4x4(basicShader, 1, &final);
 
         int randomDirIndex = (rand() % OUTPUT_COUNT);
         if((fileDir = readdir(dirs[randomDirIndex])) != NULL)
@@ -206,10 +200,10 @@ void Training(State* s)
             {
                 ConvertImageGrayScale((uint32_t*)data, image.width, image.height); //niet nodig met de mnist/shapes dataset natuurlijk
 
-                //ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, edgeKernelHV);
+                ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, sobelKernelH);
 
-                LoadSubTexGPU(&image, 0, 0, (uint32_t*)data);
-                totalCost += Train(network, computeShader, (uint32_t*)data, randomDirIndex);
+                LoadSubTexGPU(&image, 0, 0, (uint32_t*)convolvedImage);
+                totalCost += Train(network, computeShader, (uint32_t*)convolvedImage, randomDirIndex);
                 imagesTrained++;
                 averageCost = totalCost / (float)imagesTrained;
 
@@ -228,7 +222,7 @@ void Training(State* s)
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    uint32_t* graphImg = GenerateGraph(stat, 0.0, (float)amountOfImagesToTrain, 0.5, (float)(OUTPUT_COUNT-1));
+    uint32_t* graphImg = GenerateGraph(stat, 0.0, (float)amountOfImagesToTrain, 0.0, 3.0);
     LoadSubTexGPU(&graph, 0, 0, graphImg);
     free((void*)graphImg);
     DeleteStatisticsSet(stat);
@@ -260,16 +254,11 @@ void Testing(State* s)
     IndexBuffer* iBuffer = s->iBuffer;
     NeuralNetwork* network = (NeuralNetwork*)s->data1;
 
-    Mat4x4 projMat = OrthographicMat4x4(0.0, ((float)DATASET_IMAGE_WIDTH * 2.0), 0.0, (float)DATASET_IMAGE_HEIGHT, -1.0, 1.0);
-    Mat4x4 viewMat = TranslationMat4x4(0.0, 0.0, 0.0);
-    Mat4x4 final; //TODO: voeg toe aan state machine, zodat training en testing scherm hetzelfde scherm hebben
-
     Texture image = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 1 };
     //LoadTexGPU(&image, NULL); //basically reserve space in GPU //TODO: beweeg naar Start state misschien?
 
     //SetKeyPressCallback(window);
 
-    Vec2f cameraPos = { 0.0f, 0.0f };
     unsigned int peekedImages = 0;
     unsigned int correctAnswers = 0;
     float totalCost = 0.0;
@@ -294,21 +283,16 @@ void Testing(State* s)
     }
     struct dirent *fileDir;
 
-    stbi_set_flip_vertically_on_load(true);
-
-    //uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
-    //const float edgeKernelV[3][3] = { { -0.2, 0.0, 0.2 }, { -1.0, 0.0, 1.0 }, { -0.2, 0.0, 0.2 } };
-    //const float edgeKernelH[3][3] = { { -0.2, -1.0, -0.2 }, { 0.0, 0.0, 0.0 }, { 0.2, 1.0, 0.2 } };
-    //const float edgeKernelHV[3][3] = { { -0.1, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 0.1 } };
+    uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
+    //const float sobelKernelV[3][3] = { { -1.0, 0.0, 1.0 }, { -2.0, 0.0, 2.0 }, { -1.0, 0.0, 1.0 } };
+    const float sobelKernelH[3][3] = { { -1.0, -2.0, -1.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 2.0, 1.0 } };
+    //const float sobelKernelD[3][3] = { { -2.0, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 2.0 } };
+    //const float sobelKernelHV[3][3] = { { -0.1, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 0.1 } };
     //const float sharpenKernel[3][3] = { { 0.0, -1.0, 0.0 }, { -1.0, 5.0, -1.0 }, { 0.0, -1.0, 0.0 } };
 
     while(!glfwWindowShouldClose(window))
     {
         Clear();
-
-        SetTransformMat4x4(&viewMat, cameraPos.x, cameraPos.y, 0.0);
-        final = MultiplyMat4x4(projMat, viewMat);
-        LoadUniformMat4x4(basicShader, 1, &final);
 
         int randomDirIndex = (rand() % OUTPUT_COUNT);
         if((fileDir = readdir(dirs[randomDirIndex])) != NULL)
@@ -319,10 +303,10 @@ void Testing(State* s)
             {
                 ConvertImageGrayScale((uint32_t*)data, image.width, image.height); //not needed for the shapes/mnist datasets
                 
-                //ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, edgeKernelHV);
+                ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, sobelKernelH);
 
-                LoadSubTexGPU(&image, 0, 0, (uint32_t*)data);
-                unsigned int highestValueIndex = PeekImage(network, (uint32_t*)data);
+                LoadSubTexGPU(&image, 0, 0, (uint32_t*)convolvedImage);
+                unsigned int highestValueIndex = PeekImage(network, (uint32_t*)convolvedImage);
                 totalCost += nCost(network, randomDirIndex);
 
                 peekedImages++;

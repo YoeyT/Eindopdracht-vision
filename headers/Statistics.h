@@ -2,6 +2,9 @@
 
 #include <Common_Includes.h>
 
+#define GRAPH_IMAGE_WIDTH   1024
+#define GRAPH_IMAGE_HEIGHT  1024
+
 #define MAX_LINES   4
 
 //highest 4 bits are size in bytes of data type, last 4 bits are just an ID for the type
@@ -14,10 +17,10 @@ typedef struct StatisticSet_o StatisticSet;
 //TODO: iets om ook nog uit te zoeken, het is waarschijnlijk mogelijk om met fourier transform een polynoom te genereren die elk punt op de grafiek exact kan berekenen met 1 formule, misschien iets om naar te kijken als de runtime het aan kan
 //Dit kan ^, maar is erg onpraktisch hiervoor https://en.wikipedia.org/wiki/Polynomial_interpolation
 
-StatisticSet* CreateStatisticSet(const uint8_t xType, const uint8_t yType);
+StatisticSet* CreateStatisticSet(const uint8_t xType, const uint8_t yType, const float xLineInterval, const float yLineInterval);
 void DeleteStatisticsSet(StatisticSet* set);
 
-void AddLineLayout(StatisticSet* set, const uint32_t color, const size_t maximumDataPointCount); //color should be ARGB format
+void AddLineLayout(StatisticSet* set, const uint32_t color, const size_t maximumDataPointCount, const unsigned int lineThickness); //color should be ARGB format
 void AddDataPoint(StatisticSet* set, unsigned int Lineindex, const void* xData, const void* yData); //watch out: will seg fault if you add too many dataPoints
 
 uint32_t* GenerateGraph(StatisticSet* set, const float xMin, const float xMax, const float yMin, const float yMax); //retruns graph image in ARGB format, dont forget to free the image

@@ -24,6 +24,7 @@ typedef struct State
     uint8_t flags; //TODO: handig voor keypress callback functies, maar misschien nog beter om gewoon een functie te schrijven die checkt welke keys gepressed zijn
 
     void* data1;
+    void* data2;
 } State;
 
 StateFn Start, Quit, Training, Testing;
