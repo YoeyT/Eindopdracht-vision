@@ -1,7 +1,6 @@
 #include "StateMachine.h"
 
 #include "dirent.h"
-#include <unistd.h> //TODO: tijdelijk
 
 #include "Texture.h"
 #include "UserInput.h"
@@ -11,6 +10,18 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h" //het fijne hieraan is dat niks extern is (ik gebruik het bovendien alleen om plaatjes in te lezen)
 //credits gaan naar alle bijdragers: https://github.com/nothings/stb
+
+/*============================ arguments ============================*/
+
+typedef struct TrainingArgs
+{
+    //neural net args
+    unsigned int neuronsPerLayer[MAX_HIDDEN_LAYER_COUNT];
+    unsigned int LayerCount;
+    float nudgeFactor;
+} TrainingArgs;
+
+
 
 GLFWwindow* Init()
 {
@@ -64,14 +75,12 @@ void Start(State* s)
     s->window = window;
     glfwSetWindowUserPointer(window, (void*)s);
     SetResizeCallback(window);
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(true); //OpenGL expects 0, 0 to be bottom left
 
     //shader library prep
     const char* shaderFilePaths[2] = { "res/shaders/basicShader.fragment", "res/shaders/basicShader.vertex" };
     const char* args[2] = { "utexSlots", "uOrtProjMat" };
-    const char* computeShaderFilePath[1] = { "res/shaders/nnBackPropagation.compute" };
     ShaderLib* shaders =  CreateShaderLibrary(shaderFilePaths, 2);
-    AppendShader(shaders, computeShaderFilePath, 1);
     AddVarsToCache(GetShader(shaders, 0), args, 2);
     s->shaderLib = shaders;
 
@@ -118,11 +127,26 @@ void Start(State* s)
     s->vBuffer = vBuffer;
     s->iBuffer = iBuffer;
 
+    //training arguments init
+    TrainingArgs* tArgs = (TrainingArgs*)malloc(sizeof(TrainingArgs));
+    tArgs->neuronsPerLayer[0] = 50;
+    tArgs->neuronsPerLayer[1] = 1;
+    tArgs->LayerCount = 2;
+    tArgs->nudgeFactor = 0.1;
+    s->data1 = (void*)tArgs;
+
+    //statistics setup
+    StatisticSet* stat = CreateStatisticSet(STAT_UINT, STAT_FLOAT, 10.0, 0.01);
+    AddLineLayout(stat, 0xFF008000, MAX_NEURON_PER_HIDDEN_LAYER_COUNT, 11);
+    s->data3 = (void*)stat;
+
     s->nextFn = Training;
 }
 
 void Quit(State* s)
 {
+    DeleteStatisticsSet((void*)(s->data3));
+    free((void*)(s->data1));
     DeleteIndexBuffer(s->iBuffer);
     DeleteVertexBuffer(s->vBuffer);
     DeleteShaderLib(s->shaderLib);
@@ -138,25 +162,23 @@ void Training(State* s)
 {
     GLFWwindow* window = s->window;
     ShaderProgram* basicShader = GetShader(s->shaderLib, 0);
-    ShaderProgram* computeShader = GetShader(s->shaderLib, 1);
     IndexBuffer* iBuffer = s->iBuffer;
+    TrainingArgs* tArgs = (TrainingArgs*)(s->data1);
 
     SetKeyPressCallback(window);
 
     Texture image = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 1 };
-    Texture graph = { GRAPH_IMAGE_WIDTH, GRAPH_IMAGE_HEIGHT, 2 };
     LoadTexGPU(&image, NULL); //basically reserve space on GPU
-    LoadTexGPU(&graph, NULL);
 
     srand(0); //zorgt ervoor dat alles binnen redelijk grenzen deterministisch blijft
 
-    //directory strings //TODO: debug code, remove later
-    // const char* trainingPath = "res/dataSets/mnist/trainingSet";
-    // const char* dirLUT[OUTPUT_COUNT] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+    //directory strings
+    const char* trainingPath = "res/dataSets/mnist/trainingSet";
+    const char* dirLUT[OUTPUT_COUNT] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
     // const char* trainingPath = "res/dataSets/shapes";
     // const char* dirLUT[OUTPUT_COUNT] = { "circle", "square", "star", "triangle" };
-    const char* trainingPath = "res/dataSets/animals/train";
-    const char* dirLUT[OUTPUT_COUNT] = { "cat", "dog", "wild" };
+    // const char* trainingPath = "res/dataSets/animals/train";
+    // const char* dirLUT[OUTPUT_COUNT] = { "cat", "dog", "wild" };
 
     //directory parse code
     char buffer[128];
@@ -170,22 +192,17 @@ void Training(State* s)
     struct dirent *fileDir;
 
     //convolution testing
-    uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
+    //uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
     //const float sobelKernelV[3][3] = { { -1.0, 0.0, 1.0 }, { -2.0, 0.0, 2.0 }, { -1.0, 0.0, 1.0 } };
-    const float sobelKernelH[3][3] = { { -1.0, -2.0, -1.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 2.0, 1.0 } };
+    //const float sobelKernelH[3][3] = { { -1.0, -2.0, -1.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 2.0, 1.0 } };
     //const float sobelKernelD[3][3] = { { -2.0, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 2.0 } };
     //const float sobelKernelHV[3][3] = { { -0.1, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 0.1 } };
     //const float sharpenKernel[3][3] = { { 0.0, -1.0, 0.0 }, { -1.0, 5.0, -1.0 }, { 0.0, -1.0, 0.0 } };
 
-    NeuralNetwork* network = CreateNeuralNetwork();
-    StatisticSet* stat = CreateStatisticSet(STAT_UINT, STAT_FLOAT, 1000.0, 0.5);
+    NeuralNetwork* network = CreateNeuralNetwork(tArgs->neuronsPerLayer, tArgs->LayerCount, tArgs->nudgeFactor);
 
     unsigned int imagesTrained = 0;
-    const unsigned int amountOfImagesToTrain = 5000;
-    float totalCost = 0.0;
-    float averageCost = 0.0;
-    AddLineLayout(stat, 0xFF008000, amountOfImagesToTrain, 5);
-
+    const unsigned int amountOfImagesToTrain = 35000;
     double beginTimer = glfwGetTime();
     while(!glfwWindowShouldClose(window) && (s->flags != 0x01) && (imagesTrained < amountOfImagesToTrain))
     {
@@ -200,16 +217,13 @@ void Training(State* s)
             {
                 ConvertImageGrayScale((uint32_t*)data, image.width, image.height); //niet nodig met de mnist/shapes dataset natuurlijk
 
-                ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, sobelKernelH);
+                //ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, sobelKernelH);
 
-                LoadSubTexGPU(&image, 0, 0, (uint32_t*)convolvedImage);
-                totalCost += Train(network, computeShader, (uint32_t*)convolvedImage, randomDirIndex);
+                LoadSubTexGPU(&image, 0, 0, (uint32_t*)data);
+                Train(network, (uint32_t*)data, randomDirIndex);
                 imagesTrained++;
-                averageCost = totalCost / (float)imagesTrained;
 
-                AddDataPoint(stat, 0, (void*)(&imagesTrained), (void*)(&averageCost));
-
-                printf("\r%d%% done", (unsigned int)(((float)imagesTrained / (float)amountOfImagesToTrain) * 100.0));
+                //printf("\r%d%% done", (unsigned int)(((float)imagesTrained / (float)amountOfImagesToTrain) * 100.0));
 
                 stbi_image_free((void*)data);
             }
@@ -217,18 +231,10 @@ void Training(State* s)
 
         Draw(iBuffer, basicShader);
 
-        //DynamicToGPU(vBuffer, &iBuffer);
-
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    uint32_t* graphImg = GenerateGraph(stat, 0.0, (float)amountOfImagesToTrain, 0.0, 3.0);
-    LoadSubTexGPU(&graph, 0, 0, graphImg);
-    free((void*)graphImg);
-    DeleteStatisticsSet(stat);
-
     printf("\ntrained %d images in %.2f minutes\n", imagesTrained, ((glfwGetTime() - beginTimer) / 60.0));
-    //SaveNeuralNetworkToFile(network, "res/savedNeuralNetworks/shapes.nn"); //TODO: optioneel, heb betere interface nodig
 
     for(unsigned int i = 0; i < OUTPUT_COUNT; i++)
         closedir(dirs[i]);
@@ -240,7 +246,7 @@ void Training(State* s)
     }
     else
     {
-        s->data1 = (void*)network;
+        s->data2 = (void*)network;
         s->nextFn = Testing;
     }
     s->flags = 0;
@@ -252,25 +258,21 @@ void Testing(State* s)
     GLFWwindow* window = s->window;
     ShaderProgram* basicShader = GetShader(s->shaderLib, 0);
     IndexBuffer* iBuffer = s->iBuffer;
-    NeuralNetwork* network = (NeuralNetwork*)s->data1;
+    TrainingArgs* tArgs = (TrainingArgs*)(s->data1);
+    NeuralNetwork* network = (NeuralNetwork*)(s->data2);
+    StatisticSet* stat = (StatisticSet*)(s->data3);
 
     Texture image = { DATASET_IMAGE_WIDTH, DATASET_IMAGE_HEIGHT, 1 };
-    //LoadTexGPU(&image, NULL); //basically reserve space in GPU //TODO: beweeg naar Start state misschien?
-
-    //SetKeyPressCallback(window);
-
-    unsigned int peekedImages = 0;
-    unsigned int correctAnswers = 0;
-    float totalCost = 0.0;
-    //double lastTime = glfwGetTime(); //TODO: later handig voor time profiling
+    Texture graph = { GRAPH_IMAGE_WIDTH, GRAPH_IMAGE_HEIGHT, 2 };
+    LoadTexGPU(&graph, NULL);
 
     //directory strings
-    // const char* testingPath = "res/dataSets/mnist/trainingSet";
-    // const char* dirLUT[OUTPUT_COUNT] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+    const char* testingPath = "res/dataSets/mnist/trainingSet";
+    const char* dirLUT[OUTPUT_COUNT] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
     // const char* testingPath = "res/dataSets/shapes";
     // const char* dirLUT[OUTPUT_COUNT] = { "circle", "square", "star", "triangle" };
-    const char* testingPath = "res/dataSets/animals/val";
-    const char* dirLUT[OUTPUT_COUNT] = { "cat", "dog", "wild" };
+    // const char* testingPath = "res/dataSets/animals/val";
+    // const char* dirLUT[OUTPUT_COUNT] = { "cat", "dog", "wild" };
 
     //directory parse code
     char buffer[128];
@@ -283,14 +285,19 @@ void Testing(State* s)
     }
     struct dirent *fileDir;
 
-    uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
+    //uint32_t* convolvedImage = (uint32_t*)malloc(sizeof(uint32_t) * (DATASET_IMAGE_WIDTH * DATASET_IMAGE_HEIGHT));
     //const float sobelKernelV[3][3] = { { -1.0, 0.0, 1.0 }, { -2.0, 0.0, 2.0 }, { -1.0, 0.0, 1.0 } };
-    const float sobelKernelH[3][3] = { { -1.0, -2.0, -1.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 2.0, 1.0 } };
+    //const float sobelKernelH[3][3] = { { -1.0, -2.0, -1.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 2.0, 1.0 } };
     //const float sobelKernelD[3][3] = { { -2.0, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 2.0 } };
     //const float sobelKernelHV[3][3] = { { -0.1, -1.0, 0.0 }, { -1.0, 0.0, 1.0 }, { 0.0, 1.0, 0.1 } };
     //const float sharpenKernel[3][3] = { { 0.0, -1.0, 0.0 }, { -1.0, 5.0, -1.0 }, { 0.0, -1.0, 0.0 } };
 
-    while(!glfwWindowShouldClose(window))
+    unsigned int amountOfImagesToTest = 42000;
+    unsigned int testedImages = 0;
+    unsigned int correctAnswers = 0;
+    float totalLoss = 0.0;
+    double beginTimer = glfwGetTime();
+    while(!glfwWindowShouldClose(window) && (testedImages < amountOfImagesToTest))
     {
         Clear();
 
@@ -303,34 +310,56 @@ void Testing(State* s)
             {
                 ConvertImageGrayScale((uint32_t*)data, image.width, image.height); //not needed for the shapes/mnist datasets
                 
-                ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, sobelKernelH);
+                //ConvolveImageKern3x3((uint32_t*)data, convolvedImage, image.width, image.height, sobelKernelH);
 
-                LoadSubTexGPU(&image, 0, 0, (uint32_t*)convolvedImage);
-                unsigned int highestValueIndex = PeekImage(network, (uint32_t*)convolvedImage);
-                totalCost += nCost(network, randomDirIndex);
+                LoadSubTexGPU(&image, 0, 0, (uint32_t*)data);
+                unsigned int highestValueIndex = PeekImage(network, (uint32_t*)data);
+                totalLoss += nLoss(network, randomDirIndex);
 
-                peekedImages++;
+                testedImages++;
                 if(highestValueIndex == randomDirIndex)
                     correctAnswers++;
-
-                if((peekedImages % 1000) == 0)
-                    printf("average cost: %.2f\taccuracy: %.2f%%\timages peeked: %d\n", (totalCost / (float)peekedImages), (((float)correctAnswers / (float)peekedImages) * 100.0), peekedImages);
 
                 stbi_image_free((void*)data);
             }
         }
-
         Draw(iBuffer, basicShader);
-
-        //DynamicToGPU(vBuffer, &iBuffer);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+    float averageLoss = (totalLoss / (float)testedImages);
+    unsigned int hiddenLayerNeuronCount = tArgs->neuronsPerLayer[1];
+    unsigned int nudgeFactor = (unsigned int)(tArgs->nudgeFactor * 100.0);
+    AddDataPoint(stat, 0, (void*)(&hiddenLayerNeuronCount), (void*)(&averageLoss));
+
+    printf("neurons in second hidden layer: %d, total layers: %d, nudge factor: %.2f\n", hiddenLayerNeuronCount, (tArgs->LayerCount + 2), tArgs->nudgeFactor);
+    printf("average Loss: %.3f, accuracy: %.2f%%, images peeked: %d, in %.2f minutes\n", averageLoss, (((float)correctAnswers / (float)testedImages) * 100.0), testedImages, ((glfwGetTime() - beginTimer) / 60.0));
 
     for(unsigned int i = 0; i < OUTPUT_COUNT; i++)
         closedir(dirs[i]);
     DeleteNeuralNetwork(network);
 
-    s->nextFn = Quit;
+    if(tArgs->neuronsPerLayer[1] < MAX_NEURON_PER_HIDDEN_LAYER_COUNT)
+    {
+        tArgs->neuronsPerLayer[1] += 1;
+        //tArgs->nudgeFactor += 0.01;
+        s->nextFn = Training;
+    }
+    else
+    {
+        uint32_t* graphImg = GenerateGraph(stat, 0.0, (float)256, 0.0, 0.1);
+        LoadSubTexGPU(&graph, 0, 0, graphImg);
+        free((void*)graphImg);
+
+        while(!glfwWindowShouldClose(window))
+        {
+            Clear();
+            Draw(iBuffer, basicShader);
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+        }
+
+        s->nextFn = Quit;
+    }
 }

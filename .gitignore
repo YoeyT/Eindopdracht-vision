@@ -49,8 +49,6 @@ dkms.conf
 
 # data sets (files too big)
 *.jpg
-*.png
 *.zip
 
-# open office
-*.odt
+*.xcf

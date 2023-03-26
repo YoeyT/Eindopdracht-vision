@@ -16,7 +16,7 @@ static void KeyPressCallback(GLFWwindow* window, int key, int scancode, int acti
         State* programState = glfwGetWindowUserPointer(window);
         if(key == GLFW_KEY_X)
         {
-            programState->flags |= 0x01; //TODO: vind iets beters, en geef de flags anders sowieso namen
+            programState->flags |= 0x01;
         }
     }
 }

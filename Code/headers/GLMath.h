@@ -32,8 +32,11 @@ void ConvolveImageKern3x3(const uint32_t* src, uint32_t* dest, const int width, 
 
 float CubicBezierSpline(const float p0, const float p1, const float c0, const float c1, const float t);
 
+static inline float maxf(const float v0, const float v1) { return (v0 > v1) ? v0 : v1; }
+static inline float minf(const float v0, const float v1) { return (v0 < v1) ? v0 : v1; }
 static inline float DotProduct(Vec2f lhs, Vec2f rhs) { return (lhs.x * rhs.x) + (lhs.y * rhs.y); }
-static inline float Sigmoid(const float x) { return (1.0 / (1.0 + powf(E, -x))); } //TODO: Sigmoid werkt erg goed met het neurale netwerk, maar misschien dat iets simpelers ook goed werkt: RELU  R(z) = min(1.0, max(0.0, z))
+static inline float Sigmoid(const float x) { return (1.0 / (1.0 + powf(E, -x))); }
+static inline float RELU(const float x) { return minf(1.0, maxf(0.0, x)); }
 static inline float Lerp(const float p0, const float p1, const float t) { return p0 + (t * (p1 - p0)); }
 
 static inline Vec2f RandomGradient()
@@ -44,6 +47,3 @@ static inline Vec2f RandomGradient()
 
 //between 0.0 and 1.0
 static inline float RandomFloat() { return ((float)rand() / (float)RAND_MAX); }
-
-static inline float maxf(const float v0, const float v1) { return (v0 > v1) ? v0 : v1; }
-static inline float minf(const float v0, const float v1) { return (v0 < v1) ? v0 : v1; }

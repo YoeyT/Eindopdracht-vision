@@ -11,5 +11,5 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#define DATASET_IMAGE_WIDTH     512
-#define DATASET_IMAGE_HEIGHT    512
+#define DATASET_IMAGE_WIDTH     28
+#define DATASET_IMAGE_HEIGHT    28

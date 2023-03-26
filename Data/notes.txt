@@ -7,17 +7,24 @@ in < 1 minute
 
 animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
 average cost: 0.47
-accuracy: 65.3%
+accuracy: 66%
+neurons per hidden layer: 20
+amount of hidden layers: 1
+in 1 minute
+
+animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
+average cost: 0.5
+accuracy: 64.7%
 neurons per hidden layer: 32
 amount of hidden layers: 1
 in 1 minute
 
 animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
-average cost: 0.47
-accuracy: 67.2%
+average cost: 0.46
+accuracy: 66.7%
 neurons per hidden layer: 64
 amount of hidden layers: 1
-in 2 minutes
+in 4 minutes
 
 animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
 average cost: 0.57
@@ -27,8 +34,8 @@ amount of hidden layers: 1
 in 5 minutes
 
 animal dataset grayscaled (amount of training images = 7000, amount of testing images = 1000, seed = 0):
-average cost: 0.51
-accuracy: 62%
+average cost: 0.52
+accuracy: 62.3%
 neurons per hidden layer: 256
 amount of hidden layers: 1
 in 10 minutes
@@ -38,7 +45,7 @@ average cost: 0.46
 accuracy: 66.2%
 neurons per hidden layer: 512
 amount of hidden layers: 1
-in 20 minutes
+in 19 minutes
 
 
 
@@ -51,8 +58,8 @@ amount of hidden layers: 1
 in < 1 minute
 
 mnist dataset (amount of training images = 35000, amount of testing images = 42000, seed = 0):
-average cost: 0.20
-accuracy: 88.27%
+average cost: 0.2
+accuracy: 87.62%
 neurons per hidden layer: 64
 amount of hidden layers: 1
 in < 1 minute
@@ -105,7 +112,7 @@ in < 1 minute
 
 shapes dataset (amount of training images = 10000, amount of testing images = 14000, seed = 0):
 average cost: 0.05
-accuracy: 97.11%
+accuracy: 97.11%!
 neurons per hidden layer: 16
 amount of hidden layers: 1
 in < 1 minute
@@ -138,3 +145,47 @@ niet slecht!
 het lijkt er op dat neurale netwerken met meerdere layers slechter worden naar mate je ze TE veel traint, heel gek (met mnist dataset)
 
 ~8000 images lijkt optimaal te zijn voor mnist dataset en 2 hidden layers (iets om nog te plotten)
+
+
+
+neurons in eerste hidden layer tests
+cost-neuron-graph-35000.png
+1 hidden layer met
+1-256 neurons op de x as, lijn elke 10 neurons
+loss op de y-as, lijn elke 0.01 loss
+
+met 256 neurons duurt het nog steeds maar 15 seconden om te trainen (35000 plaatjes)
+met 1 neuron duurt het ~4 seconden
+
+50 lijkt een goed middenpunt te zijn
+
+
+
+nudge factor test mnist
+cost-nudgeval-graph-35000.png
+1 hidden layer met 50 neuronen
+nudge value op de x as, lijn elke 0.1 nudge factor van 0.01-1.0
+loss op de y-as, lijn elke 0.01 loss
+
+duurt altijd even lang om te trainen en testen, 7 seconden en 8 seconden respectievelijk
+
+0.1 lijkt hier het beste te zijn
+
+
+
+neurons in tweede hidden layer test mnist
+cost-neuron2-graph-35000.png
+hidden layer 1 met 50 neuronen
+hidden layer 2 met 1-256 neuronen
+nudge value op 0.1
+1-256 neurons van tweede layer op de x as, lijn elke 10 neuron
+loss op de y-as, lijn elke 0.01 loss
+
+dit is een redelijk onverwachte vinding; geen enkele configuratie met een tweede laag was beter dan de beste configuratie van een neuraal netwerk met 1 laag.
+
+de cost lijkt ook veel meer te varieren, dit kan misschien een indicatie zijn van randomness?
+
+
+
+
+

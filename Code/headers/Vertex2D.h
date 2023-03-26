@@ -2,7 +2,7 @@
 
 #include <Common_Includes.h>
 
-typedef struct Vertex2D //TODO: toch nog even kijken later of dit niet beter bij de vertexBuffer file kan
+typedef struct Vertex2D
 {
     float x;
     float y;

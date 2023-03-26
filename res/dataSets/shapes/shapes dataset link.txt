@@ -1,3 +1,0 @@
-https://www.kaggle.com/datasets/smeschke/four-shapes
-
-zet circle, square, star en triangle in dezelfde directory als deze file

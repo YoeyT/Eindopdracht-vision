@@ -21,10 +21,11 @@ typedef struct State
     VertexBuffer* vBuffer;
     IndexBuffer* iBuffer;
 
-    uint8_t flags; //TODO: handig voor keypress callback functies, maar misschien nog beter om gewoon een functie te schrijven die checkt welke keys gepressed zijn
+    uint8_t flags;
 
     void* data1;
     void* data2;
+    void* data3;
 } State;
 
 StateFn Start, Quit, Training, Testing;

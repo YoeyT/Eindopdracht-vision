@@ -119,7 +119,7 @@ uint32_t* GenerateGraph(StatisticSet* set, const float xMin, const float xMax, c
 
     for(unsigned int i = 0; i < set->lineCount; i++)
     {
-        const unsigned int dataPointSize = set->dataPointCounter[i];
+        const int dataPointSize = set->dataPointCounter[i];
         const uint32_t color = set->colors[i];
         const void* srcBuffer = set->dataPointBuffers[i];
         const unsigned int lineThickness = set->lineThickness[i];
@@ -129,7 +129,7 @@ uint32_t* GenerateGraph(StatisticSet* set, const float xMin, const float xMax, c
 
         float xPixelCoords[4] = { 0 };
         float yPixelCoords[4] = { 0 };
-        for(unsigned int j = 0; j < (dataPointSize - 3); j++)
+        for(int j = 0; j < (dataPointSize - 3); j++)
         {
             //translate the dataPoints to coordinates in the graphs space
             for(unsigned int k = 0; k < 4; k++)
